@@ -9,11 +9,11 @@ function MainLayout() {
 
       <Navbar />
 
-      <div className="flex">
+      <div className="flex min-w-0">
 
         <Sidebar />
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6 min-w-0">
           <Outlet />
         </main>
 

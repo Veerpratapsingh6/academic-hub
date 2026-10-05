@@ -3,7 +3,7 @@ import Rating from "./Rating"
 
 function DocumentCard({ document }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:-translate-y-1 transition duration-200">
 
       {/* Document Title */}
       <h2 className="text-xl font-bold text-gray-900">

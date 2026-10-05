@@ -87,7 +87,7 @@ function DocumentDetails() {
 
   if (!document) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-8">
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-8">
 
         <h1 className="text-2xl font-bold text-red-600">
           Document Not Found
@@ -108,6 +108,10 @@ function DocumentDetails() {
     )
   }
 
+  const handleDownload = () => {
+  alert("Download feature will be connected with backend soon.")
+}
+
   return (
     <div>
 
@@ -126,7 +130,7 @@ function DocumentDetails() {
           DOCUMENT DETAILS
         </p>
 
-        <h1 className="text-3xl font-bold text-gray-900 mt-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">
           {document.title}
         </h1>
 
@@ -218,7 +222,7 @@ function DocumentDetails() {
 
 setComment("")
     }}
-    className="mt-3 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition"
+    className="mt-3 w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition"
   >
     Add Comment
   </button>
@@ -247,17 +251,18 @@ setComment("")
 </div>
 
         {/* Download Button */}
-        <div className="mt-8 flex gap-3">
+        <div className="mt-8 flex flex-col sm:flex-row gap-3">
 
   <button
-    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+    onClick={handleDownload}
+    className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
   >
     Download Document
   </button>
 
   <button
     onClick={() => setSaved(!saved)}
-    className={`px-6 py-3 rounded-lg font-medium transition ${
+    className={`w-full sm:w-auto px-6 py-3 rounded-lg font-medium transition ${
       saved
         ? "bg-green-600 text-white"
         : "bg-gray-200 text-gray-800 hover:bg-gray-300"

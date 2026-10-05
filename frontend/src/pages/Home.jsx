@@ -3,13 +3,13 @@ function Home() {
     <div>
 
       {/* Hero Section */}
-      <section className="bg-white rounded-2xl p-8 border border-gray-200">
+      <section className="bg-white rounded-2xl p-5 md:p-8 border border-gray-200">
 
         <p className="text-blue-600 font-semibold mb-2">
           WELCOME TO ACADEMIC HUB
         </p>
 
-        <h1 className="text-4xl font-bold text-gray-900">
+        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
           Learn. Share. Grow.
         </h1>
 

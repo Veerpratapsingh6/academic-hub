@@ -1,3 +1,5 @@
+import UploadModal from "../components/UploadModal"
+
 function Dashboard() {
   return (
     <div>
@@ -8,7 +10,7 @@ function Dashboard() {
           STUDENT DASHBOARD
         </p>
 
-        <h1 className="text-3xl font-bold text-gray-900 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
           Welcome back!
         </h1>
 
@@ -20,7 +22,7 @@ function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-200">
           <p className="text-gray-500">
             Uploaded Documents
           </p>
@@ -30,7 +32,7 @@ function Dashboard() {
           </h2>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-200">
           <p className="text-gray-500">
             Saved Documents
           </p>
@@ -40,7 +42,7 @@ function Dashboard() {
           </h2>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-200">
           <p className="text-gray-500">
             Contributions
           </p>
@@ -50,6 +52,11 @@ function Dashboard() {
           </h2>
         </div>
 
+      </div>
+
+      {/* Upload Document */}
+      <div className="mt-8">
+        <UploadModal />
       </div>
 
     </div>

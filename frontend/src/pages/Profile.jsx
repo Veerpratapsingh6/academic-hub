@@ -9,7 +9,7 @@ function Profile() {
           ACCOUNT
         </p>
 
-        <h1 className="text-3xl font-bold text-gray-900 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
           My Profile
         </h1>
 
@@ -20,7 +20,7 @@ function Profile() {
       </div>
 
       {/* Profile Card */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-8">
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-8">
 
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
 
@@ -32,7 +32,7 @@ function Profile() {
           {/* User Information */}
           <div className="text-center md:text-left">
 
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
               Veer Pratap Singh
             </h2>
 

@@ -1,35 +1,105 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 
 function Navbar() {
+
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
-    <nav className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+    <nav className="bg-white border-b border-gray-200">
 
-      {/* Logo */}
-      <Link
-        to="/"
-        className="text-2xl font-bold text-blue-600 hover:text-blue-700"
-      >
-        Academic Hub
-      </Link>
-
-      {/* Right Side */}
-      <div className="flex items-center gap-3">
+      <div className="h-16 flex items-center justify-between px-6">
 
         <Link
-          to="/login"
-          className="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium"
+          to="/"
+          className="text-2xl font-bold text-blue-600 hover:text-blue-700"
         >
-          Login
+          Academic Hub
         </Link>
 
-        <Link
-          to="/register"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        {/* Desktop Buttons */}
+        <div className="hidden md:flex items-center gap-3">
+
+          <Link
+            to="/login"
+            className="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium"
+          >
+            Login
+          </Link>
+
+          <Link
+            to="/register"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            Register
+          </Link>
+
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden text-2xl text-gray-700"
         >
-          Register
-        </Link>
+          ☰
+        </button>
 
       </div>
+
+      {/* Mobile Menu */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-gray-200 px-6 py-4 space-y-2">
+
+          <Link
+            to="/"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 rounded-lg hover:bg-gray-100"
+          >
+            Home
+          </Link>
+
+          <Link
+            to="/dashboard"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 rounded-lg hover:bg-gray-100"
+          >
+            Dashboard
+          </Link>
+
+          <Link
+            to="/documents"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 rounded-lg hover:bg-gray-100"
+          >
+            Documents
+          </Link>
+
+          <Link
+            to="/profile"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 rounded-lg hover:bg-gray-100"
+          >
+            Profile
+          </Link>
+
+          <Link
+            to="/login"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 rounded-lg hover:bg-gray-100"
+          >
+            Login
+          </Link>
+
+          <Link
+            to="/register"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 bg-blue-600 text-white rounded-lg text-center hover:bg-blue-700"
+          >
+            Register
+          </Link>
+
+        </div>
+      )}
 
     </nav>
   )
