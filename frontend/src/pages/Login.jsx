@@ -1,7 +1,10 @@
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useState } from "react"
+import axios from "axios"
 
 function Login() {
+
+   const navigate = useNavigate()
 
    const [email, setEmail] = useState("")
    const [password, setPassword] = useState("")
@@ -28,7 +31,7 @@ function Login() {
         </div>
 
         <form
-  onSubmit={(e) => {
+  onSubmit={async(e) => {
     e.preventDefault()
 
     setEmailError("")
@@ -59,10 +62,27 @@ function Login() {
     }
 
     if (!isValid) {
-      return
-    }
+  return
+}
 
-    alert("Login validation successful!")
+try {
+  const response = await axios.post(
+    "http://127.0.0.1:8000/login",
+    {
+      email: email,
+      password: password
+    }
+  )
+
+  localStorage.setItem("access_token", response.data.access_token)
+
+  console.log("Login successful")
+
+  navigate("/dashboard")
+
+} catch (error) {
+  console.log(error)
+}
   }}
   className="space-y-5"
 >

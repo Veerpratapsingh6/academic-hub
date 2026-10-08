@@ -1,6 +1,29 @@
 import UploadModal from "../components/UploadModal"
+import { useEffect,useState } from "react"
+import axios from "axios"
 
 function Dashboard() {
+
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+
+  const token = localStorage.getItem("access_token")
+
+  axios.get("http://127.0.0.1:8000/profile", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+  .then((response) => {
+    console.log("Profile data:", response.data)
+    setUser(response.data.user)
+  })
+  .catch((error) => {
+    console.log("Profile error:", error)
+  })
+
+}, [])
   return (
     <div>
 
@@ -11,7 +34,7 @@ function Dashboard() {
         </p>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
-          Welcome back!
+          Welcome back, {user?.name}!
         </h1>
 
         <p className="text-gray-500 mt-2">

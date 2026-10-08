@@ -1,7 +1,10 @@
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useState } from "react"
+import axios from "axios"
 
 function Register() {
+
+  const navigate = useNavigate()
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -29,48 +32,78 @@ function Register() {
         </div>
 
         <form
-  onSubmit={(e) => {
-    e.preventDefault()
+          onSubmit={async(e) => {
+          e.preventDefault()
 
-    setNameError("")
-    setEmailError("")
-    setPasswordError("")
+          setNameError("")
+          setEmailError("")
+          setPasswordError("")
+      
+          let isValid = true
+      
+          if (!name.trim()) {
+            setNameError("Please enter your name.")
+            isValid = false
+          }
+      
+          if (!email.trim()) {
+            setEmailError("Please enter your email.")
+            isValid = false
+          }
+          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setEmailError("Please enter a valid email address.")
+            isValid = false
+          }
+      
+          if (!password.trim()) {
+            setPasswordError("Please enter your password.")
+            isValid = false
+          }
+          else if (password.length < 8) {
+            setPasswordError("Password must be at least 8 characters.")
+            isValid = false
+          }
+          else if (!/\d/.test(password)) {
+            setPasswordError("Password must contain at least one number.")
+            isValid = false
+          }
+      
+          if (!isValid) {
+            return
+          }
 
-    let isValid = true
+          try {
 
-    if (!name.trim()) {
-      setNameError("Please enter your name.")
-      isValid = false
-    }
+            const response = await axios.post(
+              "http://127.0.0.1:8000/register",
+              {
+                name: name,
+                email: email,
+                password: password
+              }
+            )
+          
+            console.log("Registration successful")
+            console.log(response.data)
 
-    if (!email.trim()) {
-      setEmailError("Please enter your email.")
-      isValid = false
-    }
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError("Please enter a valid email address.")
-      isValid = false
-    }
+            navigate("/login")
 
-    if (!password.trim()) {
-      setPasswordError("Please enter your password.")
-      isValid = false
-    }
-    else if (password.length < 8) {
-      setPasswordError("Password must be at least 8 characters.")
-      isValid = false
-    }
-    else if (!/\d/.test(password)) {
-      setPasswordError("Password must contain at least one number.")
-      isValid = false
-    }
+          } catch (error) {
 
-    if (!isValid) {
-      return
-    }
+            console.log("Registration error:", error)
+          
+            if (error.response) {
+          
+              setEmailError(error.response.data.detail)
+          
+            } else {
+          
+              setEmailError("Something went wrong. Please try again.")
+          
+            }
 
-    alert("Registration validation successful!")
-  }}
+          }
+            }}
   className="space-y-5"
 >
 
