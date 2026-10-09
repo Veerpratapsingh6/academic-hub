@@ -1,16 +1,19 @@
 import { Link, useNavigate } from "react-router-dom"
 import { useState } from "react"
 import axios from "axios"
+import { useAuth } from "../context/AuthContext"
 
 function Login() {
 
    const navigate = useNavigate()
+   const { login } = useAuth()
 
    const [email, setEmail] = useState("")
    const [password, setPassword] = useState("")
    
    const [emailError, setEmailError] = useState("")
    const [passwordError, setPasswordError] = useState("")
+   const [loginError, setLoginError] = useState("")
 
 
   return (
@@ -74,14 +77,16 @@ try {
     }
   )
 
-  localStorage.setItem("access_token", response.data.access_token)
+  login(response.data.access_token)
 
   console.log("Login successful")
 
   navigate("/dashboard")
 
 } catch (error) {
-  console.log(error)
+  setLoginError(
+    error.response?.data?.detail || "Invalid email or password."
+  )
 }
   }}
   className="space-y-5"
@@ -130,6 +135,12 @@ try {
             )}
 
           </div>
+
+          {loginError && (
+            <p className="text-sm text-red-600 text-center">
+              {loginError}
+            </p>
+          )}
 
           <button
             type="submit"

@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState,useEffect } from "react"
+import axios from "axios"
 import DocumentCard from "../components/DocumentCard"
-import { Link } from "react-router-dom"
 import SearchBar from "../components/SearchBar"
 
 function Documents() {
@@ -8,51 +8,32 @@ function Documents() {
     const [subject, setSubject] = useState("All")
     const [sortBy, setSortBy] = useState("default")
 
-  const documents = [
-    {
-      id: 1,
-      title: "DBMS Notes",
-      subject: "Database Management System",
-      rating: 4.6,
-      downloads: 120
-    },
-    {
-      id: 2,
-      title: "Operating System Notes",
-      subject: "Operating System",
-      rating: 4.8,
-      downloads: 95
-    },
-    {
-      id: 3,
-      title: "Computer Networks Notes",
-      subject: "Computer Networks",
-      rating: 4.5,
-      downloads: 80
-    },
-    {
-      id: 4,
-      title: "Compiler Design Notes",
-      subject: "Compiler Design",
-      rating: 4.7,
-      downloads: 70
-    },
-    {
-      id: 5,
-      title: "Machine Learning Notes",
-      subject: "Machine Learning",
-      rating: 4.9,
-      downloads: 150
-    },
-    {
-      id: 6,
-      title: "Data Structures Notes",
-      subject: "Data Structures & Algorithms",
-      rating: 4.8,
-      downloads: 180
-    }
-  ]
+    const [documents, setDocuments] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState("")
+    
+    useEffect(() => {
+      axios.get("http://127.0.0.1:8000/documents", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`
+        }
+      })
+        .then((response) => {
+          setDocuments(response.data.documents)
+        })
+        .catch((error) => {
+          setError(
+            error.response?.data?.detail ||
+            "Failed to load documents."
+          )
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    }, [])
 
+
+  const subjects = [...new Set(documents.map((document) => document.subject))]
   const filteredDocuments = documents
   .filter((document) => {
 
@@ -124,29 +105,11 @@ function Documents() {
         All Subjects
       </option>
 
-      <option value="Database Management System">
-        Database Management System
-      </option>
-
-      <option value="Operating System">
-        Operating System
-      </option>
-
-      <option value="Computer Networks">
-        Computer Networks
-      </option>
-
-      <option value="Compiler Design">
-        Compiler Design
-      </option>
-
-      <option value="Machine Learning">
-        Machine Learning
-      </option>
-
-      <option value="Data Structures & Algorithms">
-        Data Structures & Algorithms
-      </option>
+      {subjects.map((item) => (
+        <option key={item} value={item}>
+          {item}
+        </option>
+      ))}
 
     </select>
 
@@ -196,17 +159,21 @@ function Documents() {
       {/* Documents Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-        {filteredDocuments.length > 0 ? (
-
+        {loading ? (
+  <p className="col-span-full text-center text-gray-500">
+    Loading documents...
+  </p>
+) : error ? (
+  <p className="col-span-full text-center text-red-500">
+    {error}
+  </p>
+) : filteredDocuments.length > 0 ? (
   filteredDocuments.map((document) => (
-
     <DocumentCard
       key={document.id}
       document={document}
     />
-
   ))
-
 ) : (
 
   <div className="col-span-full bg-white border border-gray-200 rounded-2xl p-10 text-center">

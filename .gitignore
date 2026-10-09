@@ -13,3 +13,6 @@ frontend/dist/
 
 # VS Code
 .vscode/
+
+# Uploaded documents
+backend/uploads/

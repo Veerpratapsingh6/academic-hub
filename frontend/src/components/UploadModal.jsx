@@ -1,4 +1,5 @@
 import { useState } from "react"
+import api from "../api"
 
 function UploadModal() {
 
@@ -9,9 +10,9 @@ function UploadModal() {
     const [error, setError] = useState("")
 
 
-    const handleSubmit = (e) => {
+    
+const handleSubmit = async (e) => {
   e.preventDefault()
-
   setError("")
 
   if (!title.trim()) {
@@ -35,27 +36,47 @@ function UploadModal() {
   }
 
   const allowedTypes = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-]
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ]
 
-if (!allowedTypes.includes(file.type)) {
-  setError("Only PDF and DOCX files are allowed.")
-  return
-}
+  if (!allowedTypes.includes(file.type)) {
+    setError("Only PDF and DOCX files are allowed.")
+    return
+  }
 
-if (file.size > 5 * 1024 * 1024) {
-  setError("File size must be less than 5 MB.")
-  return
-}
+  if (file.size > 5 * 1024 * 1024) {
+    setError("File size must be less than 5 MB.")
+    return
+  }
 
-  alert("Document uploaded successfully!")
+  const formData = new FormData()
+  formData.append("title", title)
+  formData.append("subject", subject)
+  formData.append("description", description)
+  formData.append("file", file)
 
-  setTitle("")
-  setSubject("")
-  setDescription("")
-  setFile(null)
+  try {
+    const response = await api.post("/documents/upload", formData)
+
+    alert(response.data.message)
+
+    setTitle("")
+    setSubject("")
+    setDescription("")
+    setFile(null)
+
+    const fileInput = document.getElementById("document-file")
+    if (fileInput) {
+      fileInput.value = ""
+    }
+  } catch (error) {
+    setError(
+      error.response?.data?.detail ||
+      "Document upload failed. Please try again."
+    )
+  }
 }
 
   return (
