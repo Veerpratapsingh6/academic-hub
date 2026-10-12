@@ -95,6 +95,16 @@ function Navbar() {
           >
             Documents
           </Link>
+
+          
+          <Link
+            to="/saved"
+            onClick={() => setMenuOpen(false)}
+            className="block px-4 py-3 rounded-lg hover:bg-gray-100"
+          >
+            Saved Documents
+          </Link>
+
       
           <Link
             to="/profile"

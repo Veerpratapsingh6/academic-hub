@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
+from pydantic import BaseModel
 
 import os
 import jwt
@@ -24,12 +26,18 @@ JWT_ALGORITHM = "HS256"
 
 app = FastAPI()
 
+
+class CommentCreate(BaseModel):
+    text: str
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 security = HTTPBearer()
@@ -286,10 +294,204 @@ def get_documents(
                 "title": document.title,
                 "subject": document.subject,
                 "description": document.description,
+                "uploadedBy": db.query(models.User).filter(
+                    models.User.id == document.user_id
+                ).first().name,
+                "file_extension": os.path.splitext(document.file_path)[1].lower(),
                 "rating": 0,
                 "downloads": 0
             }
             for document in documents
         ]
     }
+
+
+# Download document
+@app.get("/documents/{document_id}/download")
+def download_document(
+    document_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    if not os.path.exists(document.file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="File not found."
+        )
+
+    file_extension = os.path.splitext(document.file_path)[1]
+
+    return FileResponse(
+        path=document.file_path,
+        filename=f"{document.title}{file_extension}",
+        media_type="application/octet-stream"
+    )
+
+
+@app.get("/documents/{document_id}/comments")
+def get_comments(
+    document_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    comments = db.query(models.Comment).filter(
+        models.Comment.document_id == document_id
+    ).order_by(models.Comment.id.desc()).all()
+
+    result = []
+
+    for comment in comments:
+        user = db.query(models.User).filter(
+            models.User.id == comment.user_id
+        ).first()
+
+        result.append({
+            "id": comment.id,
+            "text": comment.text,
+            "user_id": comment.user_id,
+            "name": user.name if user else "Unknown"
+        })
+
+    return {"comments": result}
+
+
+@app.post("/documents/{document_id}/comments")
+def create_comment(
+    document_id: int,
+    comment_data: CommentCreate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    text = comment_data.text.strip()
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Comment cannot be empty.")
+
+    new_comment = models.Comment(
+        text=text,
+        user_id=current_user.id,
+        document_id=document_id
+    )
+
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return {
+        "id": new_comment.id,
+        "text": new_comment.text,
+        "user_id": current_user.id,
+        "name": current_user.name
+    }
+
+
+
+@app.post("/documents/{document_id}/save")
+def save_document(
+    document_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    existing_save = db.query(models.SavedDocument).filter(
+        models.SavedDocument.user_id == current_user.id,
+        models.SavedDocument.document_id == document_id
+    ).first()
+
+    if existing_save:
+        return {"message": "Document already saved."}
+
+    saved_document = models.SavedDocument(
+        user_id=current_user.id,
+        document_id=document_id
+    )
+
+    db.add(saved_document)
+    db.commit()
+
+    return {"message": "Document saved successfully."}
+
+
+@app.delete("/documents/{document_id}/save")
+def unsave_document(
+    document_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    saved_document = db.query(models.SavedDocument).filter(
+        models.SavedDocument.user_id == current_user.id,
+        models.SavedDocument.document_id == document_id
+    ).first()
+
+    if saved_document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Saved document not found."
+        )
+
+    db.delete(saved_document)
+    db.commit()
+
+    return {"message": "Document removed from saved documents."}
+
+
+
+@app.get("/documents/saved")
+def get_saved_documents(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    saved_documents = db.query(models.SavedDocument).filter(
+        models.SavedDocument.user_id == current_user.id
+    ).all()
+
+    document_ids = [item.document_id for item in saved_documents]
+
+    documents = db.query(models.Document).filter(
+        models.Document.id.in_(document_ids)
+    ).all()
+
+    return {
+        "documents": [
+            {
+                "id": document.id,
+                "title": document.title,
+                "subject": document.subject
+            }
+            for document in documents
+        ]
+    }
+
+
+
 

@@ -11,6 +11,7 @@ import DocumentDetails from "./pages/DocumentDetails"
 import Profile from "./pages/Profile"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AuthProvider } from "./context/AuthContext"
+import SavedDocuments from "./pages/SavedDocuments"
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route path="/register" element={<Register />} />
+        <Route path="/saved" element={<SavedDocuments />} />
 
       </Routes>
     </BrowserRouter>

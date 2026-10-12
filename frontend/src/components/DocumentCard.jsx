@@ -1,7 +1,41 @@
 import { Link } from "react-router-dom"
 import Rating from "./Rating"
+import api from "../api"
 
 function DocumentCard({ document }) {
+
+    const handleDownload = async () => {
+    try {
+
+      const response = await api.get(
+        `/documents/${document.id}/download`,
+        { responseType: "blob" }
+      )
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data])
+      )
+
+      const link = window.document.createElement("a")
+      link.href = url
+      // 🟢 PDF filename fix
+      const contentDisposition = response.headers["content-disposition"]
+      const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/)
+      const filename = filenameMatch?.[1] || `${document.title}${document.file_extension || ".pdf"}`
+
+link.download = filename
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Download failed:", error)
+      alert("Could not download document.")
+    }
+  }
+
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:-translate-y-1 transition duration-200">
 
@@ -38,13 +72,24 @@ function DocumentCard({ document }) {
 
       </div>
 
-      {/* view details */}
-      <Link
+      {/* Action buttons */}
+      <div className="flex gap-3 mt-5">
+      
+        <Link
           to={`/documents/${document.id}`}
-          className="block w-full mt-5 bg-blue-600 text-white py-2.5 rounded-lg font-medium text-center hover:bg-blue-700 transition"
+          className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-medium text-center hover:bg-blue-700 transition"
         >
-           View Details
+          View Details
         </Link>
+      
+        <button
+          onClick={handleDownload}
+          className="flex-1 bg-gray-900 text-white py-2.5 rounded-lg font-medium hover:bg-gray-700 transition"
+        >
+          Download
+        </button>
+      
+      </div>
 
     </div>
   )

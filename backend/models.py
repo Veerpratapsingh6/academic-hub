@@ -30,3 +30,24 @@ class Document(Base):
     file_path = Column(String, nullable=False)
 
     user_id = Column(Integer, nullable=False)
+
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(String, nullable=False)
+    user_id = Column(Integer, nullable=False)
+    document_id = Column(Integer, nullable=False)
+
+
+
+class SavedDocument(Base):
+    __tablename__ = "saved_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False)
+    document_id = Column(Integer, nullable=False)
+
+

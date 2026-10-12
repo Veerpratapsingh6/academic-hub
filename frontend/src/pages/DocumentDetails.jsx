@@ -1,89 +1,77 @@
 import { Link, useParams } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import api from "../api"
 import Comment from "../components/Comment"
 
 function DocumentDetails() {
 
   const { id } = useParams()
+  const [document, setDocument] = useState(null)
+  const [loading, setLoading] = useState(true) 
   const [saved, setSaved] = useState(false)
   const [comment, setComment] = useState("")
-  const [comments, setComments] = useState([
-  {
-    name: "Aman Verma",
-    text: "Very useful notes. Helped me a lot during exam preparation."
-  },
-  {
-    name: "Priya Singh",
-    text: "The DBMS topics are explained really well."
-  }
-])
+  const [comments, setComments] = useState([])
 
-  const documents = [
-    {
-      id: 1,
-      title: "DBMS Notes",
-      subject: "Database Management System",
-      rating: 4.6,
-      downloads: 120,
-      uploadedBy: "Rahul Sharma",
-      description:
-        "Complete DBMS study material covering database concepts, SQL, normalization, transactions and important exam topics."
-    },
-    {
-      id: 2,
-      title: "Operating System Notes",
-      subject: "Operating System",
-      rating: 4.8,
-      downloads: 95,
-      uploadedBy: "Aman Verma",
-      description:
-        "Complete Operating System notes covering processes, CPU scheduling, deadlocks, memory management and file systems."
-    },
-    {
-      id: 3,
-      title: "Computer Networks Notes",
-      subject: "Computer Networks",
-      rating: 4.5,
-      downloads: 80,
-      uploadedBy: "Priya Singh",
-      description:
-        "Computer Networks study material covering OSI model, TCP/IP, Ethernet, routing, protocols and network security."
-    },
-    {
-      id: 4,
-      title: "Compiler Design Notes",
-      subject: "Compiler Design",
-      rating: 4.7,
-      downloads: 70,
-      uploadedBy: "Karan Gupta",
-      description:
-        "Compiler Design notes covering lexical analysis, syntax analysis, parsing, CFG, FIRST, FOLLOW and intermediate code generation."
-    },
-    {
-      id: 5,
-      title: "Machine Learning Notes",
-      subject: "Machine Learning",
-      rating: 4.9,
-      downloads: 150,
-      uploadedBy: "Neha Sharma",
-      description:
-        "Machine Learning study material covering supervised learning, regression, classification, preprocessing and model evaluation."
-    },
-    {
-      id: 6,
-      title: "Data Structures Notes",
-      subject: "Data Structures & Algorithms",
-      rating: 4.8,
-      downloads: 180,
-      uploadedBy: "Ravi Kumar",
-      description:
-        "DSA notes covering arrays, linked lists, stacks, queues, trees, graphs, searching and sorting algorithms."
+
+  
+useEffect(() => {
+  const fetchComments = async () => {
+    try {
+      const response = await api.get(`/documents/${id}/comments`)
+      setComments(response.data.comments)
+    } catch (error) {
+      console.error("Failed to fetch comments:", error)
     }
-  ]
+  }
 
-  const document = documents.find(
-    (item) => item.id === Number(id)
-  )
+  fetchComments()
+}, [id])
+
+
+useEffect(() => {
+  const fetchDocument = async () => {
+    try {
+      const response = await api.get("/documents")
+      const foundDocument = response.data.documents.find(
+        (item) => item.id === Number(id)
+      )
+
+      setDocument(foundDocument || null)
+    } catch (error) {
+      console.error("Failed to fetch document:", error)
+      setDocument(null)
+    } finally {
+      setLoading(false) 
+    }
+  }
+
+  fetchDocument()
+}, [id])
+
+
+useEffect(() => {
+  const checkSavedStatus = async () => {
+    try {
+      const response = await api.get("/documents/saved")
+      const savedDocuments = response.data.documents || []
+
+      setSaved(
+        savedDocuments.some((item) => item.id === Number(id))
+      )
+    } catch (error) {
+      console.error("Failed to check saved status:", error)
+    }
+  }
+
+  checkSavedStatus()
+}, [id])
+
+
+  if (loading) {
+    return (
+      <p className="text-gray-500">Loading document...</p>
+    )
+  }
 
   if (!document) {
     return (
@@ -108,12 +96,81 @@ function DocumentDetails() {
     )
   }
 
-  const handleDownload = () => {
-  alert("Download feature will be connected with backend soon.")
+  
+  const handleDownload = async () => {
+    try {
+      const response = await api.get(
+        `/documents/${id}/download`,
+        { responseType: "blob" }
+      )
+  
+      const blob = new Blob([response.data])
+      const url = window.URL.createObjectURL(blob)
+  
+      const link = window.document.createElement("a")
+      link.href = url
+  
+      const contentDisposition = response.headers["content-disposition"]
+      const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/)
+      const filename =
+        filenameMatch?.[1] ||
+        `${document.title}${document.file_extension || ".pdf"}`
+  
+      link.download = filename
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+  
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Download failed:", error)
+      alert(error.response?.data?.detail || "Failed to download document.")
+    }
+  }
+
+
+  
+  const handleAddComment = async () => {
+    if (!comment.trim()) return
+  
+    try {
+      const response = await api.post(
+        `/documents/${id}/comments`,
+        { text: comment.trim() }
+      )
+  
+      setComments((previousComments) => [
+        ...previousComments,
+        response.data
+      ])
+  
+      setComment("")
+    } catch (error) {
+      console.error("Failed to add comment:", error)
+      alert(error.response?.data?.detail || "Failed to add comment.")
+    }
+  }
+
+  
+const handleSave = async () => {
+  try {
+    if (saved) {
+      await api.delete(`/documents/${id}/save`)
+      setSaved(false)
+    } else {
+      await api.post(`/documents/${id}/save`)
+      setSaved(true)
+    }
+  } catch (error) {
+    console.error("Failed to update saved status:", error)
+    alert(error.response?.data?.detail || "Failed to update saved document.")
+  }
 }
 
+
+
   return (
-    <div>
+    <div className="min-w-0 space-y-4 p-4 sm:p-6 lg:p-8">
 
       {/* Back Button */}
       <Link
@@ -124,7 +181,7 @@ function DocumentDetails() {
       </Link>
 
       {/* Document Details */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-8">
+      <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
 
         <p className="text-blue-600 font-medium">
           DOCUMENT DETAILS
@@ -139,7 +196,7 @@ function DocumentDetails() {
         </p>
 
         {/* Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
 
           <div className="bg-gray-50 rounded-xl p-5">
             <p className="text-sm text-gray-500">
@@ -190,7 +247,7 @@ function DocumentDetails() {
             Description
           </h2>
 
-          <p className="text-gray-600 mt-2 leading-7">
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-gray-600 sm:text-base">
             {document.description}
           </p>
 
@@ -209,19 +266,7 @@ function DocumentDetails() {
   />
 
   <button
-    onClick={() => {
-      if (comment.trim() === "") return
-
-      setComments([
-  ...comments,
-  {
-    name: "You",
-    text: comment
-  }
-])
-
-setComment("")
-    }}
+    onClick={handleAddComment}
     className="mt-3 w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition"
   >
     Add Comment
@@ -251,7 +296,7 @@ setComment("")
 </div>
 
         {/* Download Button */}
-        <div className="mt-8 flex flex-col sm:flex-row gap-3">
+        <div className="mt-8 flex flex-col gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:flex-wrap">
 
   <button
     onClick={handleDownload}
@@ -261,7 +306,7 @@ setComment("")
   </button>
 
   <button
-    onClick={() => setSaved(!saved)}
+    onClick={handleSave}
     className={`w-full sm:w-auto px-6 py-3 rounded-lg font-medium transition ${
       saved
         ? "bg-green-600 text-white"

@@ -16,6 +16,10 @@ function Sidebar() {
       path: "/documents",
     },
     {
+      name: "Saved Documents",
+      path: "/saved",
+    },
+    {
       name: "Profile",
       path: "/profile",
     },

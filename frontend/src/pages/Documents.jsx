@@ -64,7 +64,7 @@ function Documents() {
   })
 
   return (
-    <div>
+    <div className="min-w-0 p-4 sm:p-6 lg:p-8">
 
       {/* Page Header */}
       <div className="mb-8">
@@ -86,7 +86,7 @@ function Documents() {
           setSearch={setSearch}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 gap-5 mb-8 sm:grid-cols-2">
 
   {/* Filter by Subject */}
   <div>
@@ -150,14 +150,20 @@ function Documents() {
 
 </div>
 
-        <p className="text-sm text-gray-500 mb-6">
-          {filteredDocuments.length} documents found
-        </p>
+        <div className="mb-6 flex items-center justify-between gap-3">
+  <p className="text-sm text-gray-500">
+    Browse your academic resources
+  </p>
+
+  <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700">
+    {loading ? "Loading..." : `${filteredDocuments.length} found`}
+  </span>
+</div>
 
       </div>
 
       {/* Documents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 2xl:grid-cols-3 lg:gap-6">
 
         {loading ? (
   <p className="col-span-full text-center text-gray-500">
