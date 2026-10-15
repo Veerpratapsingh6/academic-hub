@@ -5,6 +5,10 @@ import api from "../api"
 function Dashboard() {
 
   const [user, setUser] = useState(null)
+  const [stats, setStats] = useState({
+    uploaded_documents: 0,
+    saved_documents: 0
+  })
 
   useEffect(() => {
   api.get("/profile")
@@ -16,10 +20,20 @@ function Dashboard() {
       console.log("Profile error:", error)
     })
 }, [])
-  return (
-    <div>
 
-      <div className="mb-8">
+useEffect(() => {
+  api.get("/dashboard/stats")
+    .then((response) => {
+      setStats(response.data)
+    })
+    .catch((error) => {
+      console.log("Dashboard stats error:", error)
+    })
+}, [])
+  return (
+    <div className="min-w-0 p-4 sm:p-6 lg:p-8">
+
+      <div className="mb-6 space-y-1 sm:mb-8">
 
         <p className="text-blue-600 font-medium">
           STUDENT DASHBOARD
@@ -29,13 +43,13 @@ function Dashboard() {
           Welcome back, {user?.name}!
         </h1>
 
-        <p className="text-gray-500 mt-2">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500 sm:text-base">
           Here's an overview of your academic activity.
         </p>
 
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
 
         <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-200">
           <p className="text-gray-500">
@@ -43,7 +57,7 @@ function Dashboard() {
           </p>
 
           <h2 className="text-3xl font-bold text-gray-900 mt-2">
-            12
+            {stats.uploaded_documents}
           </h2>
         </div>
 
@@ -53,7 +67,7 @@ function Dashboard() {
           </p>
 
           <h2 className="text-3xl font-bold text-gray-900 mt-2">
-            8
+            {stats.saved_documents}
           </h2>
         </div>
 
@@ -62,15 +76,17 @@ function Dashboard() {
             Contributions
           </p>
 
+
           <h2 className="text-3xl font-bold text-gray-900 mt-2">
-            5
+            {stats.contributions}
           </h2>
+
         </div>
 
       </div>
 
       {/* Upload Document */}
-      <div className="mt-8">
+      <div className="mt-6 min-w-0 sm:mt-8">
         <UploadModal />
       </div>
 

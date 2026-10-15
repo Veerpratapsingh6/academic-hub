@@ -31,6 +31,13 @@ class CommentCreate(BaseModel):
     text: str
 
 
+class ProfileUpdate(BaseModel):
+    name: str
+    department: str | None = None
+    year: str | None = None
+
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -192,15 +199,86 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 }
 
 @app.get("/profile")
-def profile(current_user = Depends(get_current_user)):
-
+def profile(current_user=Depends(get_current_user)):
     return {
         "message": "Authenticated user profile",
         "user": {
             "id": current_user.id,
             "name": current_user.name,
-            "email": current_user.email
+            "email": current_user.email,
+            "department": current_user.department,
+            "year": current_user.year
         }
+    }
+
+
+@app.put("/profile")
+def update_profile(
+    profile_data: ProfileUpdate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    name = profile_data.name.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Name cannot be empty."
+        )
+
+    current_user.name = name
+
+    current_user.department = (
+        profile_data.department.strip()
+        if profile_data.department and profile_data.department.strip()
+        else None
+    )
+
+    current_user.year = (
+        profile_data.year.strip()
+        if profile_data.year and profile_data.year.strip()
+        else None
+    )
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "message": "Profile updated successfully",
+        "user": {
+            "id": current_user.id,
+            "name": current_user.name,
+            "email": current_user.email,
+            "department": current_user.department,
+            "year": current_user.year
+        }
+    }
+
+
+
+@app.get("/dashboard/stats")
+def get_dashboard_stats(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    uploaded_count = db.query(models.Document).filter(
+        models.Document.user_id == current_user.id
+    ).count()
+
+    saved_count = db.query(models.SavedDocument).filter(
+        models.SavedDocument.user_id == current_user.id
+    ).count()
+
+    comments_count = db.query(models.Comment).filter(
+        models.Comment.user_id == current_user.id
+    ).count()
+
+    contributions_count = uploaded_count + comments_count
+
+    return {
+        "uploaded_documents": uploaded_count,
+        "saved_documents": saved_count,
+        "contributions": contributions_count
     }
 
 

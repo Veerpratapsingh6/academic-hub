@@ -14,6 +14,11 @@ class User(Base):
 
     password = Column(String, nullable=False)
 
+    department = Column(String, nullable=True)
+
+    year = Column(String, nullable=True)
+
+
 
 
 class Document(Base):
