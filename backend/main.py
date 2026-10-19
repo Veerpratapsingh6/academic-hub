@@ -530,7 +530,6 @@ def download_document(
     document = db.query(models.Document).filter(
         models.Document.id == document_id
     ).first()
-    
     print("DOWNLOAD FUNCTION HIT")
     if document is None:
         raise HTTPException(
@@ -549,12 +548,10 @@ def download_document(
     document.downloads += 1
 
     print("Downloads before commit:", document.downloads)
-    
     db.commit()
     db.refresh(document)
     
     print("Downloads after commit:", document.downloads)
-
     return FileResponse(
         path=document.file_path,
         filename=f"{document.title}{file_extension}",
