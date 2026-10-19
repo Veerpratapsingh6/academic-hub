@@ -13,7 +13,8 @@ function Profile() {
   const [formData, setFormData] = useState({
     name: "",
     department: "",
-    year: ""
+    year: "",
+    college: ""
   })
 
 
@@ -28,7 +29,8 @@ useEffect(() => {
       setFormData({
         name: profile.name || "",
         department: profile.department || "",
-        year: profile.year || ""
+        year: profile.year || "",
+        college: profile.college || "",
       })
     })
     .catch((error) => {
@@ -65,7 +67,8 @@ const handleSave = async (event) => {
     setFormData({
       name: response.data.user.name || "",
       department: response.data.user.department || "",
-      year: response.data.user.year || ""
+      year: response.data.user.year || "",
+      college: response.data.user.college || ""
     })
 
     setIsEditing(false)
@@ -131,13 +134,15 @@ const handleSave = async (event) => {
     {user?.name || "Loading..."}
   </h2>
 
-  <p className="text-gray-500 mt-1">
-    Computer Science Student
-  </p>
+<p className="text-gray-500 mt-1">
+  {user?.department
+    ? `${user.department} Student`
+    : "Student"}
+</p>
 
-  <p className="text-gray-500 mt-1">
-    MMMUT Gorakhpur
-  </p>
+<p className="text-gray-500 mt-1">
+  {user?.college || "College / University not specified"}
+</p>
 
 
 <button
@@ -223,6 +228,25 @@ onClick={() => {
         <option value="3rd Year">3rd Year</option>
         <option value="4th Year">4th Year</option>
       </select>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        College / University
+      </label>
+    
+      <input
+        type="text"
+        value={formData.college}
+        onChange={(e) =>
+          setFormData({
+            ...formData,
+            college: e.target.value
+          })
+        }
+        placeholder="Enter your college or university"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+      />
     </div>
 
     <div className="flex flex-col sm:flex-row gap-3">

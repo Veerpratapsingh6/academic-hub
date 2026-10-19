@@ -26,7 +26,7 @@ function Sidebar() {
   ]
 
   return (
-    <aside className="w-64 min-h-[calc(100vh-64px)] bg-gray-900 text-white p-5 hidden md:block">
+    <aside className="fixed top-16 left-0 w-64 h-[calc(100vh-64px)] bg-gray-900 text-white p-5 overflow-y-auto hidden md:block">
 
       {/* Sidebar Header */}
       <div className="mb-8">

@@ -45,6 +45,10 @@ function Register() {
             setNameError("Please enter your name.")
             isValid = false
           }
+          else if (!/^[A-Za-z\s]+$/.test(name.trim())) {
+            setNameError("Name must contain only letters and spaces.")
+            isValid = false
+          }
       
           if (!email.trim()) {
             setEmailError("Please enter your email.")
@@ -55,6 +59,7 @@ function Register() {
             isValid = false
           }
       
+          
           if (!password.trim()) {
             setPasswordError("Please enter your password.")
             isValid = false
@@ -63,10 +68,23 @@ function Register() {
             setPasswordError("Password must be at least 8 characters.")
             isValid = false
           }
-          else if (!/\d/.test(password)) {
+          else if (!/[A-Z]/.test(password)) {
+            setPasswordError("Password must contain at least one capital letter.")
+            isValid = false
+          }
+          else if (!/[a-z]/.test(password)) {
+            setPasswordError("Password must contain at least one small letter.")
+            isValid = false
+          }
+          else if (!/[0-9]/.test(password)) {
             setPasswordError("Password must contain at least one number.")
             isValid = false
           }
+          else if (!/[^A-Za-z0-9]/.test(password)) {
+            setPasswordError("Password must contain at least one special symbol.")
+            isValid = false
+          }
+
       
           if (!isValid) {
             return
@@ -164,6 +182,18 @@ function Register() {
               placeholder="Create a password"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
             />
+            
+            <p className="text-xs text-gray-500 mt-2">
+              Password must contain:
+            </p>
+            <ul className="text-xs text-gray-500 mt-1 space-y-1">
+              <li>• At least 8 characters</li>
+              <li>• One uppercase letter (A-Z)</li>
+              <li>• One lowercase letter (a-z)</li>
+              <li>• One number (0-9)</li>
+              <li>• One special symbol (@, #, !, etc.)</li>
+            </ul>
+
 
             {passwordError && (
              <p className="text-sm text-red-600 mt-1">

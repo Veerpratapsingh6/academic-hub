@@ -3,8 +3,15 @@ from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func, distinct
 from pwdlib import PasswordHash
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from fastapi_mail import FastMail, MessageSchema
+from fastapi_mail import MessageType
+from pydantic import EmailStr
+import secrets
+import hashlib
+from email_config import conf
 
 import os
 import jwt
@@ -13,7 +20,14 @@ from dotenv import load_dotenv
 
 from database import engine, Base, get_db
 import models
-from schemas import UserCreate, UserLogin
+
+from schemas import (
+    UserCreate,
+    UserLogin,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
+
 
 
 load_dotenv()
@@ -35,6 +49,10 @@ class ProfileUpdate(BaseModel):
     name: str
     department: str | None = None
     year: str | None = None
+    college: str | None = None
+
+class RatingCreate(BaseModel):
+    rating: int= Field(ge=1, le=5)
 
 
 
@@ -207,7 +225,8 @@ def profile(current_user=Depends(get_current_user)):
             "name": current_user.name,
             "email": current_user.email,
             "department": current_user.department,
-            "year": current_user.year
+            "year": current_user.year,
+            "college": current_user.college
         }
     }
 
@@ -240,6 +259,12 @@ def update_profile(
         else None
     )
 
+    current_user.college = (
+        profile_data.college.strip()
+        if profile_data.college and profile_data.college.strip()
+        else None
+    )
+
     db.commit()
     db.refresh(current_user)
 
@@ -250,7 +275,8 @@ def update_profile(
             "name": current_user.name,
             "email": current_user.email,
             "department": current_user.department,
-            "year": current_user.year
+            "year": current_user.year,
+            "college": current_user.college
         }
     }
 
@@ -280,6 +306,109 @@ def get_dashboard_stats(
         "saved_documents": saved_count,
         "contributions": contributions_count
     }
+
+
+@app.get("/home/stats")
+def get_home_stats(db: Session = Depends(get_db)):
+    resources_count = db.query(models.Document).count()
+
+    students_count = db.query(models.User).count()
+
+    departments_count = db.query(
+        func.count(distinct(func.trim(models.User.department)))
+    ).filter(
+        models.User.department.isnot(None),
+        func.trim(models.User.department) != ""
+    ).scalar()
+
+    return {
+        "resources": resources_count,
+        "students": students_count,
+        "departments": departments_count
+    }
+
+
+
+@app.get("/documents/{document_id}/rating")
+def get_document_rating(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    ratings = db.query(models.Rating).filter(
+        models.Rating.document_id == document_id
+    )
+
+    average_rating = ratings.with_entities(
+        func.avg(models.Rating.rating)
+    ).scalar()
+
+    total_ratings = ratings.count()
+
+    user_rating = ratings.filter(
+        models.Rating.user_id == current_user.id
+    ).with_entities(
+        models.Rating.rating
+    ).scalar()
+
+    return {
+        "average_rating": round(float(average_rating), 1) if average_rating is not None else 0,
+        "total_ratings": total_ratings,
+        "user_rating": user_rating
+    }
+
+
+@app.post("/documents/{document_id}/rating")
+def submit_document_rating(
+    document_id: int,
+    rating_data: RatingCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    existing_rating = db.query(models.Rating).filter(
+        models.Rating.document_id == document_id,
+        models.Rating.user_id == current_user.id
+    ).first()
+
+    if existing_rating:
+        existing_rating.rating = rating_data.rating
+    else:
+        new_rating = models.Rating(
+            user_id=current_user.id,
+            document_id=document_id,
+            rating=rating_data.rating
+        )
+        db.add(new_rating)
+
+    db.commit()
+
+    return {
+        "message": "Rating saved successfully",
+        "rating": rating_data.rating
+    }
+
+
+
 
 
 @app.post("/documents/upload")
@@ -376,8 +505,15 @@ def get_documents(
                     models.User.id == document.user_id
                 ).first().name,
                 "file_extension": os.path.splitext(document.file_path)[1].lower(),
-                "rating": 0,
-                "downloads": 0
+                "rating": round(
+                                    float(
+                                        db.query(func.avg(models.Rating.rating))
+                                        .filter(models.Rating.document_id == document.id)
+                                        .scalar() or 0
+                                    ),
+                                    1
+                                ),
+                "downloads": document.downloads
             }
             for document in documents
         ]
@@ -394,7 +530,8 @@ def download_document(
     document = db.query(models.Document).filter(
         models.Document.id == document_id
     ).first()
-
+    
+    print("DOWNLOAD FUNCTION HIT")
     if document is None:
         raise HTTPException(
             status_code=404,
@@ -408,6 +545,15 @@ def download_document(
         )
 
     file_extension = os.path.splitext(document.file_path)[1]
+
+    document.downloads += 1
+
+    print("Downloads before commit:", document.downloads)
+    
+    db.commit()
+    db.refresh(document)
+    
+    print("Downloads after commit:", document.downloads)
 
     return FileResponse(
         path=document.file_path,
@@ -571,5 +717,135 @@ def get_saved_documents(
     }
 
 
+@app.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(
+        models.User.email == request.email
+    ).first()
+
+    # Do not reveal whether an email is registered
+    if user is None:
+        return {
+            "message": "If this email is registered, a password reset link will be sent."
+        }
+
+    # Invalidate previous unused reset tokens
+    db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.user_id == user.id,
+        models.PasswordResetToken.is_used == False
+    ).update({"is_used": True})
+
+    # Generate a secure reset token
+    reset_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(
+        reset_token.encode()
+    ).hexdigest()
+
+    reset_record = models.PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=30),
+        is_used=False
+    )
+
+    db.add(reset_record)
+    db.commit()
+
+    reset_link = (
+        f"{os.getenv('FRONTEND_URL')}/reset-password"
+        f"?token={reset_token}"
+    )
+
+    message = MessageSchema(
+        subject="Academic Hub - Password Reset",
+        recipients=[user.email],
+        body=f"""
+            <h2>Password Reset Request</h2>
+            <p>You requested to reset your Academic Hub password.</p>
+            <p>
+                <a href="{reset_link}">Reset My Password</a>
+            </p>
+            <p>This link expires in 30 minutes and can only be used once.</p>
+            <p>If you did not request this, ignore this email.</p>
+        """,
+        subtype=MessageType.html
+    )
+
+    fm = FastMail(conf)
+    await fm.send_message(message)
+
+    return {
+        "message": "If this email is registered, a password reset link will be sent."
+    }
+
+
+@app.post("/reset-password")
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    # Hash the token received from the frontend
+    token_hash = hashlib.sha256(
+        request.token.encode()
+    ).hexdigest()
+
+    reset_record = db.query(
+        models.PasswordResetToken
+    ).filter(
+        models.PasswordResetToken.token_hash == token_hash,
+        models.PasswordResetToken.is_used == False
+    ).first()
+
+    # Reject invalid or already-used tokens
+    if reset_record is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset link."
+        )
+
+    # Check token expiry
+    current_time = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    if reset_record.expires_at <= current_time:
+        reset_record.is_used = True
+        db.commit()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset link."
+        )
+
+    # Find the user
+    user = db.query(models.User).filter(
+        models.User.id == reset_record.user_id
+    ).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset link."
+        )
+
+    # Update the password using the existing hashing system
+    user.password = password_hash.hash(request.new_password)
+
+    # Mark this token as used
+    reset_record.is_used = True
+
+    # Invalidate other reset tokens belonging to this user
+    db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.user_id == user.id,
+        models.PasswordResetToken.is_used == False
+    ).update({"is_used": True})
+
+    db.commit()
+
+    return {
+        "message": "Password reset successful. Please log in with your new password."
+    }
 
 

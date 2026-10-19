@@ -1,4 +1,25 @@
+import { useState, useEffect } from "react"
+import api from "../api"
+
 function Home() {
+
+  const [stats, setStats] = useState({
+    resources: 0,
+    students: 0,
+    departments: 0
+  })
+
+  useEffect(() => {
+    api.get("/home/stats")
+      .then((response) => {
+        setStats(response.data)
+      })
+      .catch((error) => {
+        console.error("Failed to load home stats:", error)
+      })
+  }, [])
+
+
   return (
     <div>
 
@@ -29,7 +50,7 @@ function Home() {
           </p>
 
           <h2 className="text-3xl font-bold mt-2">
-            1,250+
+            {stats.resources}
           </h2>
         </div>
 
@@ -39,7 +60,7 @@ function Home() {
           </p>
 
           <h2 className="text-3xl font-bold mt-2">
-            500+
+            {stats.students}
           </h2>
         </div>
 
@@ -49,7 +70,7 @@ function Home() {
           </p>
 
           <h2 className="text-3xl font-bold mt-2">
-            10+
+            {stats.departments}
           </h2>
         </div>
 

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom"
 import Rating from "./Rating"
 import api from "../api"
 
-function DocumentCard({ document }) {
+function DocumentCard({ document, onDownloadSuccess }) {
 
     const handleDownload = async () => {
     try {
@@ -29,6 +29,10 @@ link.download = filename
       link.remove()
 
       window.URL.revokeObjectURL(url)
+
+      if (onDownloadSuccess) {
+        await onDownloadSuccess()
+      }
     } catch (error) {
       console.error("Download failed:", error)
       alert("Could not download document.")

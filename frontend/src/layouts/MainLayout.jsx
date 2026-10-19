@@ -9,14 +9,14 @@ function MainLayout() {
 
       <Navbar />
 
-      <div className="flex min-w-0">
-
+      <div className="flex min-w-0 pt-16">
+      
         <Sidebar />
-
-        <main className="flex-1 p-4 md:p-6 min-w-0">
+      
+        <main className="flex-1 min-w-0 p-4 md:p-6 md:ml-64">
           <Outlet />
         </main>
-
+      
       </div>
 
     </div>

@@ -136,6 +136,17 @@ try {
 
           </div>
 
+          
+          <div className="text-right -mt-3">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-blue-600 font-medium hover:underline"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
+
           {loginError && (
             <p className="text-sm text-red-600 text-center">
               {loginError}

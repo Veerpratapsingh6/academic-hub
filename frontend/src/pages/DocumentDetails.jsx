@@ -11,6 +11,41 @@ function DocumentDetails() {
   const [saved, setSaved] = useState(false)
   const [comment, setComment] = useState("")
   const [comments, setComments] = useState([])
+  const [ratingData, setRatingData] = useState({
+    average_rating: 0,
+    total_ratings: 0,
+    user_rating: null
+  })
+  
+  const [selectedRating, setSelectedRating] = useState(0)
+  const [ratingLoading, setRatingLoading] = useState(false)
+
+
+  const handleSubmitRating = async () => {
+  if (selectedRating === 0) {
+    alert("Please select a rating first")
+    return
+  }
+
+  setRatingLoading(true)
+
+  try {
+    await api.post(`/documents/${id}/rating`, {
+      rating: selectedRating
+    })
+
+    const response = await api.get(`/documents/${id}/rating`)
+    setRatingData(response.data)
+    setSelectedRating(response.data.user_rating || 0)
+
+    alert("Rating submitted successfully!")
+  } catch (error) {
+    console.error("Failed to submit rating:", error)
+    alert("Failed to submit rating. Please try again.")
+  } finally {
+    setRatingLoading(false)
+  }
+}
 
 
   
@@ -25,6 +60,23 @@ useEffect(() => {
   }
 
   fetchComments()
+}, [id])
+
+
+useEffect(() => {
+  const fetchRating = async () => {
+    console.log("Fetching rating for document:", id)
+    try {
+      const response = await api.get(`/documents/${id}/rating`)
+
+      setRatingData(response.data)
+      setSelectedRating(response.data.user_rating || 0)
+    } catch (error) {
+      console.error("Failed to fetch rating:", error)
+    }
+  }
+
+  fetchRating()
 }, [id])
 
 
@@ -119,9 +171,21 @@ useEffect(() => {
       link.download = filename
       window.document.body.appendChild(link)
       link.click()
-      link.remove()
-  
-      window.URL.revokeObjectURL(url)
+link.remove()
+
+window.URL.revokeObjectURL(url)
+
+const updatedDocument = await api.get("/documents")
+const latestDocument = updatedDocument.data.documents.find(
+  (item) => item.id === Number(id)
+)
+
+if (latestDocument) {
+  setDocument((previousDocument) => ({
+    ...previousDocument,
+    downloads: latestDocument.downloads
+  }))
+}
     } catch (error) {
       console.error("Download failed:", error)
       alert(error.response?.data?.detail || "Failed to download document.")
@@ -199,14 +263,43 @@ const handleSave = async () => {
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
 
           <div className="bg-gray-50 rounded-xl p-5">
-            <p className="text-sm text-gray-500">
-              Rating
-            </p>
+  <p className="text-sm text-gray-500">Rating</p>
 
-            <p className="font-semibold text-gray-900 mt-1">
-              ⭐ {document.rating}
-            </p>
-          </div>
+  <p className="font-semibold text-gray-900 mt-1">
+    ⭐ {ratingData.average_rating}
+  </p>
+
+  <p className="text-sm text-gray-500 mt-4">
+    Rate this document
+  </p>
+
+  <div className="flex items-center gap-2 mt-2">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => setSelectedRating(star)}
+          className={`text-2xl transition ${
+            star <= selectedRating
+              ? "text-yellow-500"
+              : "text-gray-300"
+          }`}
+          aria-label={`Rate ${star} out of 5`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+
+    <button
+  type="button"
+  onClick={handleSubmitRating}
+  disabled={ratingLoading || selectedRating === 0}
+  className="mt-4 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {ratingLoading ? "Submitting..." : "Submit Rating"}
+</button>
+  </div>
 
           <div className="bg-gray-50 rounded-xl p-5">
             <p className="text-sm text-gray-500">

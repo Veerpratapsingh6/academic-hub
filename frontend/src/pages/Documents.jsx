@@ -12,25 +12,30 @@ function Documents() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     
-    useEffect(() => {
-      axios.get("http://127.0.0.1:8000/documents", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`
-        }
-      })
-        .then((response) => {
-          setDocuments(response.data.documents)
-        })
-        .catch((error) => {
-          setError(
-            error.response?.data?.detail ||
-            "Failed to load documents."
-          )
-        })
-        .finally(() => {
-          setLoading(false)
-        })
-    }, [])
+    const fetchDocuments = () => {
+  axios.get("http://127.0.0.1:8000/documents", {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("access_token")}`
+    }
+  })
+    .then((response) => {
+      setDocuments(response.data.documents)
+      setError("")
+    })
+    .catch((error) => {
+      setError(
+        error.response?.data?.detail ||
+        "Failed to load documents."
+      )
+    })
+    .finally(() => {
+      setLoading(false)
+    })
+}
+
+useEffect(() => {
+  fetchDocuments()
+}, [])
 
 
   const subjects = [...new Set(documents.map((document) => document.subject))]
@@ -176,9 +181,10 @@ function Documents() {
 ) : filteredDocuments.length > 0 ? (
   filteredDocuments.map((document) => (
     <DocumentCard
-      key={document.id}
-      document={document}
-    />
+  key={document.id}
+  document={document}
+  onDownloadSuccess={fetchDocuments}
+/>
   ))
 ) : (
 
