@@ -26,6 +26,7 @@ from schemas import (
     UserLogin,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    DocumentUpdate,
 )
 
 
@@ -498,6 +499,7 @@ def get_documents(
         "documents": [
             {
                 "id": document.id,
+                "user_id": document.user_id,
                 "title": document.title,
                 "subject": document.subject,
                 "description": document.description,
@@ -518,6 +520,116 @@ def get_documents(
             for document in documents
         ]
     }
+
+
+@app.put("/documents/{document_id}")
+def update_document(
+    document_id: int,
+    updated_data: DocumentUpdate,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    if document.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only edit your own documents."
+        )
+
+    if (
+        not updated_data.title.strip()
+        or not updated_data.subject.strip()
+        or not updated_data.description.strip()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Title, subject, and description cannot be empty."
+        )
+
+    document.title = updated_data.title.strip()
+    document.subject = updated_data.subject.strip()
+    document.description = updated_data.description.strip()
+
+    db.commit()
+    db.refresh(document)
+
+    return {
+        "message": "Document updated successfully.",
+        "document": {
+            "id": document.id,
+            "title": document.title,
+            "subject": document.subject,
+            "description": document.description
+        }
+    }
+
+
+@app.delete("/documents/{document_id}")
+def delete_document(
+    document_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    if document.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only delete your own documents."
+        )
+
+    file_path = document.file_path
+
+    
+    try:
+        db.query(models.Rating).filter(
+            models.Rating.document_id == document_id
+        ).delete(synchronize_session=False)
+
+        db.query(models.Comment).filter(
+            models.Comment.document_id == document_id
+        ).delete(synchronize_session=False)
+
+        db.query(models.SavedDocument).filter(
+            models.SavedDocument.document_id == document_id
+        ).delete(synchronize_session=False)
+
+        db.delete(document)
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Could not delete document."
+        )
+
+
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except OSError:
+            print(f"Could not remove uploaded file: {file_path}")
+
+    return {"message": "Document deleted successfully."}
+
 
 
 # Download document
@@ -557,6 +669,47 @@ def download_document(
         filename=f"{document.title}{file_extension}",
         media_type="application/octet-stream"
     )
+
+
+
+@app.get("/documents/{document_id}/preview")
+def preview_document(
+    document_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id
+    ).first()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    if not os.path.exists(document.file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="File not found."
+        )
+
+    file_extension = os.path.splitext(document.file_path)[1].lower()
+
+    if file_extension != ".pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="Preview is only available for PDF files."
+        )
+
+    return FileResponse(
+        path=document.file_path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "inline"
+        }
+    )
+
 
 
 @app.get("/documents/{document_id}/comments")

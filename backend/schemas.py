@@ -85,3 +85,11 @@ class ResetPasswordRequest(BaseModel):
             )
 
         return value
+
+
+
+class DocumentUpdate(BaseModel):
+    title: str
+    subject: str
+    description: str
+

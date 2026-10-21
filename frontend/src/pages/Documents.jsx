@@ -7,6 +7,13 @@ function Documents() {
     const [search, setSearch] = useState("")
     const [subject, setSubject] = useState("All")
     const [sortBy, setSortBy] = useState("default")
+    const [minRating, setMinRating] = useState("0")
+    const resetFilters = () => {
+      setSearch("")
+      setSubject("All")
+      setSortBy("default")
+      setMinRating("0")
+    }
 
     const [documents, setDocuments] = useState([])
     const [loading, setLoading] = useState(true)
@@ -42,14 +49,20 @@ useEffect(() => {
   const filteredDocuments = documents
   .filter((document) => {
 
-    const matchesSearch =
-      document.title.toLowerCase().includes(search.toLowerCase()) ||
-      document.subject.toLowerCase().includes(search.toLowerCase())
+    
+  const searchTerm = search.trim().toLowerCase()
+  
+  const matchesSearch =
+    document.title.toLowerCase().includes(searchTerm) ||
+    document.subject.toLowerCase().includes(searchTerm) ||
+    (document.description || "").toLowerCase().includes(searchTerm)
+
 
     const matchesSubject =
       subject === "All" || document.subject === subject
+    const matchesRating = document.rating >= Number(minRating)
 
-    return matchesSearch && matchesSubject
+    return matchesSearch && matchesSubject && matchesRating
   })
   .sort((a, b) => {
 
@@ -153,17 +166,61 @@ useEffect(() => {
 
   </div>
 
+  
+  {/* Filter by Minimum Rating */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Minimum Rating
+    </label>
+
+    <select
+      value={minRating}
+      onChange={(e) => setMinRating(e.target.value)}
+      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <option value="0">All Ratings</option>
+      <option value="1">1+ Stars</option>
+      <option value="2">2+ Stars</option>
+      <option value="3">3+ Stars</option>
+      <option value="4">4+ Stars</option>
+      <option value="5">5 Stars</option>
+    </select>
+  </div>
+
+
 </div>
+        
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="mb-6 inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm transition-all duration-200 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md active:scale-95"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 4v5h5M5.5 15a7 7 0 1 0 1.2-7.8L4 9"
+            />
+          </svg>
+          Reset Filters
+        </button>
 
         <div className="mb-6 flex items-center justify-between gap-3">
-  <p className="text-sm text-gray-500">
-    Browse your academic resources
-  </p>
-
-  <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700">
-    {loading ? "Loading..." : `${filteredDocuments.length} found`}
-  </span>
-</div>
+          <p className="text-sm text-gray-500">
+            Browse your academic resources
+          </p>
+        
+          <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700">
+            {loading ? "Loading..." : `${filteredDocuments.length} found`}
+          </span>
+        </div>
 
       </div>
 

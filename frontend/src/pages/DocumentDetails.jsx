@@ -1,13 +1,107 @@
+
 import { Link, useParams } from "react-router-dom"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Document as PdfDocument, Page, pdfjs } from "react-pdf"
+import { useInView } from "react-intersection-observer"
+import "react-pdf/dist/Page/AnnotationLayer.css"
+import "react-pdf/dist/Page/TextLayer.css"
 import api from "../api"
 import Comment from "../components/Comment"
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString()
+
+
+function ScrollablePdfPage({
+  pageNumber,
+  scale,
+  onPageVisible,
+  pdfViewerRef,
+}) {
+  const { ref, inView } = useInView({
+    rootMargin: "500px 0px",
+    triggerOnce: true,
+  })
+  
+const { ref: visibilityRef, inView: isPageVisible } = useInView({
+  root: null,
+  threshold: 0.5,
+})
+
+
+useEffect(() => {
+  if (!isPageVisible) return
+
+  const viewer = pdfViewerRef?.current
+  const pageElement = window.document.getElementById(
+    `pdf-page-${pageNumber}`
+  )
+
+  if (!viewer || !pageElement) return
+
+  const viewerRect = viewer.getBoundingClientRect()
+  const pageRect = pageElement.getBoundingClientRect()
+
+  const visibleTop = Math.max(pageRect.top, viewerRect.top)
+  const visibleBottom = Math.min(pageRect.bottom, viewerRect.bottom)
+  const visibleHeight = Math.max(0, visibleBottom - visibleTop)
+
+  if (visibleHeight > 0) {
+    onPageVisible(pageNumber)
+  }
+}, [isPageVisible, pageNumber, onPageVisible, pdfViewerRef])
+
+
+ 
+  
+return (
+    <div
+  id={`pdf-page-${pageNumber}`}
+  ref={(node) => {
+    ref(node)
+    visibilityRef(node)
+  }}
+  className="mb-5 flex min-h-[200px] items-start justify-center scroll-mt-4"
+>
+
+      {inView ? (
+        <Page
+          pageNumber={pageNumber}
+          scale={scale}
+          renderTextLayer={true}
+          renderAnnotationLayer={true}
+          className="w-fit shadow-md"
+        />
+      ) : (
+        <div className="flex min-h-[200px] w-full items-center justify-center text-sm text-gray-400">
+          Page {pageNumber}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
 
 function DocumentDetails() {
 
   const { id } = useParams()
   const [document, setDocument] = useState(null)
-  const [loading, setLoading] = useState(true) 
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [loading, setLoading] = useState(true)
+  
+  // PDF Viewer state
+  const [numPages, setNumPages] = useState(0)
+  const pdfViewerRef = useRef(null)
+  const [pageNumber, setPageNumber] = useState(1)
+  const [targetPage, setTargetPage] = useState("1")
+  const [scale, setScale] = useState(1)
+  const [pdfSearch, setPdfSearch] = useState("")
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
   const [saved, setSaved] = useState(false)
   const [comment, setComment] = useState("")
   const [comments, setComments] = useState([])
@@ -19,6 +113,135 @@ function DocumentDetails() {
   
   const [selectedRating, setSelectedRating] = useState(0)
   const [ratingLoading, setRatingLoading] = useState(false)
+
+  const handlePageVisible = useCallback((visiblePage) => {
+  setPageNumber(visiblePage)
+  setTargetPage(String(visiblePage))
+}, [])
+
+  const handlePdfLoadSuccess = ({ numPages }) => {
+  setNumPages(numPages)
+  setPageNumber(1)
+  setTargetPage("1")
+}
+
+  const goToPreviousPage = () => {
+    if (pageNumber > 1) {
+      scrollToPdfPage(pageNumber - 1)
+    }
+  }
+
+  
+
+
+const scrollToPdfPage = (targetPage) => {
+  const viewer = pdfViewerRef.current
+  const pageElement = window.document.getElementById(
+    `pdf-page-${targetPage}`
+  )
+
+  if (!viewer || !pageElement) return
+
+  const viewerRect = viewer.getBoundingClientRect()
+  const pageRect = pageElement.getBoundingClientRect()
+  const viewerStyle = window.getComputedStyle(viewer)
+  const viewerPaddingTop = parseFloat(viewerStyle.paddingTop) || 0
+
+  const targetPosition =
+    viewer.scrollTop +
+    pageRect.top -
+    viewerRect.top -
+    viewer.clientTop -
+    viewerPaddingTop
+
+  setPageNumber(targetPage)
+  setTargetPage(String(targetPage))
+
+  viewer.scrollTo({
+    top: targetPosition,
+    behavior: "auto",
+  })
+}
+
+
+
+
+  const goToNextPage = () => {
+    if (pageNumber < numPages) {
+    scrollToPdfPage(pageNumber + 1)
+    }
+  }
+
+  const zoomIn = () => {
+    setScale((previousScale) => Math.min(previousScale + 0.2, 2.5))
+  }
+
+  const zoomOut = () => {
+    setScale((previousScale) => Math.max(previousScale - 0.2, 0.6))
+  }
+
+  
+
+  const handlePdfSearch = async () => {
+    const query = pdfSearch.trim().toLowerCase().replace(/\s+/g, " ")
+  
+    if (!query || !previewUrl || !numPages) {
+      setSearchResults([])
+      return
+    }
+  
+    setSearching(true)
+    setSearchResults([])
+  
+    try {
+      
+      const pdf = await pdfjs.getDocument({ url: previewUrl }).promise
+      const results = []
+      const maxResults = 200
+  
+      for (let page = 1; page <= pdf.numPages; page++) {
+        const pdfPage = await pdf.getPage(page)
+        const textContent = await pdfPage.getTextContent()
+  
+        const pageText = textContent.items
+          .map((item) => item.str || "")
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .toLowerCase()
+  
+        let startIndex = 0
+  
+        while (startIndex < pageText.length) {
+          const matchIndex = pageText.indexOf(query, startIndex)
+  
+          if (matchIndex === -1) break
+  
+          results.push({
+            pageNumber: page,
+            text: pageText.slice(
+              Math.max(0, matchIndex - 50),
+              Math.min(pageText.length, matchIndex + query.length + 50)
+            ),
+          })
+  
+          if (results.length >= maxResults) break
+  
+          startIndex = matchIndex + Math.max(query.length, 1)
+        }
+  
+        if (results.length >= maxResults) break
+      }
+  
+      setSearchResults(results)
+    } catch (error) {
+      console.error("PDF text search failed:", error)
+      alert("Could not search this PDF. Please try again.")
+    } finally {
+      setSearching(false)
+    }
+  }
+
+
 
 
   const handleSubmitRating = async () => {
@@ -99,6 +322,40 @@ useEffect(() => {
 
   fetchDocument()
 }, [id])
+
+
+useEffect(() => {
+  if (!document || document.file_extension?.toLowerCase() !== ".pdf") {
+    setPreviewUrl(null)
+    return
+  }
+
+  let objectUrl = null
+
+  const fetchPreview = async () => {
+    try {
+      const response = await api.get(
+        `/documents/${id}/preview`,
+        { responseType: "blob" }
+      )
+
+      objectUrl = window.URL.createObjectURL(response.data)
+      setPreviewUrl(objectUrl)
+    } catch (error) {
+      console.error("Failed to load PDF preview:", error)
+      setPreviewUrl(null)
+    }
+  }
+
+  fetchPreview()
+
+  return () => {
+    if (objectUrl) {
+      window.URL.revokeObjectURL(objectUrl)
+    }
+  }
+}, [document, id])
+
 
 
 useEffect(() => {
@@ -387,6 +644,221 @@ const handleSave = async () => {
   </div>
 
 </div>
+        
+
+{/* PDF Preview */}
+{document.file_extension?.toLowerCase() === ".pdf" && (
+  <div className="mt-8 min-w-0">
+    <h2 className="mb-4 text-xl font-semibold text-gray-900">
+      Advanced PDF Viewer
+    </h2>
+
+    {previewUrl ? (
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+       
+{/* Viewer Controls */}
+<div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white p-4">
+  {/* Zoom Controls */}
+  <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1">
+    <button
+      type="button"
+      onClick={zoomOut}
+      disabled={scale <= 0.6}
+      title="Zoom out"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-semibold text-gray-700 transition hover:bg-indigo-100 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      −
+    </button>
+
+    <span className="min-w-[58px] text-center text-sm font-bold text-gray-800">
+      {Math.round(scale * 100)}%
+    </span>
+
+    <button
+      type="button"
+      onClick={zoomIn}
+      disabled={scale >= 2.5}
+      title="Zoom in"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-semibold text-gray-700 transition hover:bg-indigo-100 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      +
+    </button>
+  </div>
+
+    {/* Page Navigation */}
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={goToPreviousPage}
+        disabled={pageNumber <= 1}
+        className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        ← Previous
+      </button>
+  
+      
+<div className="flex items-center gap-2">
+  <span className="whitespace-nowrap rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
+    {pageNumber} / {numPages || "…"}
+  </span>
+
+  <input
+    type="number"
+    min="1"
+    max={numPages || 1}
+    value={targetPage}
+    onChange={(e) => setTargetPage(e.target.value)}
+    className="w-16 rounded-lg border border-gray-300 px-2 py-2 text-center text-sm"
+    aria-label="Go to page number"
+  />
+
+  <button
+    type="button"
+    onClick={() => {
+      const page = Number(targetPage)
+
+      if (page >= 1 && page <= numPages) {
+        scrollToPdfPage(page)
+      }
+    }}
+    disabled={!numPages}
+    className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+  >
+    Go
+  </button>
+</div>
+
+  
+      <button
+        type="button"
+        onClick={goToNextPage}
+        disabled={pageNumber >= numPages}
+        className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Next →
+      </button>
+    </div>
+  </div>
+
+
+
+{/* PDF Text Search */}
+<div className="border-b border-gray-200 bg-white p-4">
+  <form
+    onSubmit={(e) => {
+      e.preventDefault()
+      handlePdfSearch()
+    }}
+    className="flex flex-col gap-3 sm:flex-row"
+  >
+    <input
+      type="text"
+      value={pdfSearch}
+      onChange={(e) => setPdfSearch(e.target.value)}
+      placeholder="Search text inside this PDF..."
+      className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+    />
+
+    <button
+      type="submit"
+      disabled={searching || !pdfSearch.trim()}
+      className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {searching ? "Searching..." : "Search PDF"}
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        setPdfSearch("")
+        setSearchResults([])
+      }}
+      className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
+    >
+      Clear
+    </button>
+  </form>
+
+  {!searching && pdfSearch.trim() && searchResults.length === 0 && (
+    <p className="mt-3 text-sm text-gray-500">
+      No results yet. Click Search PDF to find matching text.
+    </p>
+  )}
+
+  {searchResults.length > 0 && (
+    <div className="mt-4 space-y-2">
+      <p className="text-sm font-semibold text-gray-700">
+        {searchResults.length} match(es) found
+      </p>
+
+      <div className="max-h-56 space-y-2 overflow-y-auto">
+        {searchResults.map((result, index) => (
+          <button
+            key={`${result.pageNumber}-${index}`}
+            type="button"
+            onClick={() => scrollToPdfPage(result.pageNumber)}
+            className="block w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
+          >
+            <span className="text-xs font-bold text-indigo-700">
+              Page {result.pageNumber}
+            </span>
+            <span className="mt-1 block text-sm text-gray-700">
+              {result.text}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+
+
+
+        {/* PDF Page */}
+        <div
+          ref={pdfViewerRef}
+          className="h-[75vh] min-h-[400px] max-h-[800px] overflow-auto overscroll-contain bg-gray-100 p-3 sm:p-5"
+        >
+
+          <PdfDocument
+            file={previewUrl}
+            onLoadSuccess={handlePdfLoadSuccess}
+            onLoadError={(error) => {
+              console.error("PDF.js failed to load:", error)
+            }}
+            loading={
+              <p className="p-6 text-center text-gray-500">
+                Loading PDF...
+              </p>
+            }
+            error={
+              <p className="p-6 text-center text-red-600">
+                Failed to display this PDF.
+              </p>
+            }
+          >
+            
+         {Array.from({ length: numPages }, (_, index) => (
+           <ScrollablePdfPage
+              key={index + 1}
+              pageNumber={index + 1}
+              scale={scale}
+              onPageVisible={handlePageVisible}
+              pdfViewerRef={pdfViewerRef}
+            />
+         ))}
+
+          </PdfDocument>
+        </div>
+      </div>
+    ) : (
+      <p className="text-sm text-gray-500">
+        Loading PDF preview...
+      </p>
+    )}
+  </div>
+)}
+
 
         {/* Download Button */}
         <div className="mt-8 flex flex-col gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:flex-wrap">
