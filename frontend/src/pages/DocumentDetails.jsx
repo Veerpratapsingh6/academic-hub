@@ -113,6 +113,12 @@ function DocumentDetails() {
   
   const [selectedRating, setSelectedRating] = useState(0)
   const [ratingLoading, setRatingLoading] = useState(false)
+  // Ask the Document state
+  const [aiQuestion, setAiQuestion] = useState("")
+  const [aiAnswer, setAiAnswer] = useState("")
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState("")
+  const [aiMessages, setAiMessages] = useState([])
 
   const handlePageVisible = useCallback((visiblePage) => {
   setPageNumber(visiblePage)
@@ -267,6 +273,48 @@ const scrollToPdfPage = (targetPage) => {
     alert("Failed to submit rating. Please try again.")
   } finally {
     setRatingLoading(false)
+  }
+}
+
+
+const handleAskAI = async (e) => {
+  e.preventDefault()
+
+  if (!aiQuestion.trim() || aiLoading) return
+
+  const question = aiQuestion.trim()
+
+  const updatedMessages = [
+    ...aiMessages,
+    { role: "user", content: question },
+  ]
+
+  setAiMessages(updatedMessages)
+  setAiQuestion("")
+  setAiLoading(true)
+  setAiAnswer("")
+  setAiError("")
+
+  try {
+    const response = await api.post("/ai/ask-document", {
+      document_id: Number(id),
+      question,
+      history: aiMessages,
+    })
+
+    setAiMessages([
+      ...updatedMessages,
+      { role: "assistant", content: response.data.answer },
+    ])
+  } catch (error) {
+    console.error("Ask the Document failed:", error)
+
+    setAiError(
+      error.response?.data?.detail ||
+        "Failed to get an answer. Please try again."
+    )
+  } finally {
+    setAiLoading(false)
   }
 }
 
@@ -589,6 +637,114 @@ const handleSave = async () => {
           </div>
 
         </div>
+        
+
+{/* Ask the Document */}
+<div className="mt-8 overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50/50">
+  <div className="border-b border-indigo-100 p-4 sm:p-6">
+    <h2 className="text-xl font-bold text-gray-900">
+      Ask the Document
+    </h2>
+
+    <p className="mt-2 text-sm text-gray-600">
+      Chat with AI about this PDF. Ask follow-up questions anytime.
+    </p>
+  </div>
+
+  {/* Chat messages */}
+  <div className="space-y-4 p-4 sm:p-6">
+    {aiMessages.length === 0 && !aiLoading && (
+      <div className="rounded-xl border border-dashed border-indigo-200 bg-white p-6 text-center">
+        <p className="font-medium text-gray-800">
+          Start a conversation
+        </p>
+        <p className="mt-2 text-sm text-gray-500">
+          Ask a question about your notes to get started.
+        </p>
+      </div>
+    )}
+
+    {aiMessages.map((message, index) => (
+      <div
+        key={index}
+        className={`flex ${
+          message.role === "user" ? "justify-end" : "justify-start"
+        }`}
+      >
+        <div
+          className={`max-w-[90%] rounded-2xl p-4 sm:max-w-[80%] ${
+            message.role === "user"
+              ? "rounded-br-md bg-indigo-600 text-white"
+              : "rounded-bl-md border border-gray-200 bg-white text-gray-800"
+          }`}
+        >
+          <p className="mb-2 text-xs font-semibold opacity-75">
+            {message.role === "user" ? "You" : "AI Tutor"}
+          </p>
+
+          <p className="whitespace-pre-wrap break-words text-sm leading-7">
+            {message.content}
+          </p>
+        </div>
+      </div>
+    ))}
+
+    {aiLoading && (
+      <div className="flex justify-start">
+        <div className="rounded-2xl rounded-bl-md border border-gray-200 bg-white p-4">
+          <p className="text-sm text-gray-600">
+            AI Tutor is thinking...
+          </p>
+        </div>
+      </div>
+    )}
+
+    {aiError && (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+        {aiError}
+      </div>
+    )}
+  </div>
+
+  {/* Question input */}
+  <form
+    onSubmit={handleAskAI}
+    className="border-t border-indigo-100 bg-white p-4 sm:p-6"
+  >
+    <label
+      htmlFor="ai-question"
+      className="mb-2 block text-sm font-semibold text-gray-800"
+    >
+      Your question
+    </label>
+
+    <textarea
+      id="ai-question"
+      value={aiQuestion}
+      onChange={(e) => setAiQuestion(e.target.value)}
+      placeholder="Ask a question or follow up on the previous answer..."
+      rows={3}
+      maxLength={2000}
+      className="w-full resize-y rounded-xl border border-gray-300 bg-white p-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+      required
+    />
+
+    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-gray-500">
+        Answers are based on your PDF and relevant explanations.
+      </p>
+
+      <button
+        type="submit"
+        disabled={aiLoading || !aiQuestion.trim()}
+        className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {aiLoading ? "Thinking..." : "Send question"}
+      </button>
+    </div>
+  </form>
+</div>
+
 
         {/* Description */}
         <div className="mt-8">
