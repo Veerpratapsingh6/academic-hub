@@ -12,6 +12,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url
 ).toString()
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 
 function ScrollablePdfPage({
@@ -682,9 +684,25 @@ const handleSave = async () => {
             {message.role === "user" ? "You" : "AI Tutor"}
           </p>
 
-          <p className="whitespace-pre-wrap break-words text-sm leading-7">
-            {message.content}
-          </p>
+          
+          <div
+            className={`break-words text-sm leading-7 ${
+              message.role === "assistant"
+                ? "prose prose-sm max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-gray-900 prose-h3:mt-6 prose-h3:mb-3 prose-h3:border-b prose-h3:border-indigo-100 prose-h3:pb-2 prose-h3:text-lg prose-p:my-3 prose-p:leading-7 prose-strong:font-semibold prose-strong:text-gray-900 prose-ul:my-3 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-3 prose-ol:list-decimal prose-ol:pl-6 prose-li:my-1 prose-li:pl-1 prose-li:leading-7 prose-hr:my-5 prose-hr:border-gray-200 prose-blockquote:border-l-4 prose-blockquote:border-indigo-300 prose-blockquote:pl-4 prose-blockquote:text-gray-600 prose-table:my-4 prose-th:border prose-th:border-gray-200 prose-th:bg-indigo-50 prose-th:p-2 prose-td:border prose-td:border-gray-200 prose-td:p-2 prose-pre:overflow-x-auto prose-pre:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-code:break-words"
+                : "whitespace-pre-wrap"
+            }`}
+          >
+            {message.role === "assistant" ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.content}
+              </ReactMarkdown>
+            ) : (
+              <p className="whitespace-pre-wrap text-sm leading-7">
+                {message.content}
+              </p>
+            )}
+          </div>
+
         </div>
       </div>
     ))}

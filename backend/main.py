@@ -31,6 +31,14 @@ from schemas import (
     DocumentUpdate,
 )
 
+from functools import lru_cache
+import time
+import pymupdf
+import pytesseract
+from PIL import Image
+
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 
 
 load_dotenv()
@@ -43,18 +51,44 @@ JWT_ALGORITHM = "HS256"
 
 app = FastAPI()
 
+@lru_cache(maxsize=32)
+def get_cached_pdf_text(file_path: str, modified_time: float) -> str:
+    return extract_pdf_text(file_path)
+
 def extract_pdf_text(file_path: str) -> str:
     reader = PdfReader(file_path)
 
     extracted_text = []
 
-    for page in reader.pages:
-        page_text = page.extract_text()
+    with pymupdf.open(file_path) as pdf_document:
+        for page_number, page in enumerate(reader.pages, start=1):
+            page_text = page.extract_text() or ""
 
-        if page_text:
-            extracted_text.append(page_text)
+            if not page_text.strip():
+                pdf_page = pdf_document[page_number - 1]
 
-    return "\n".join(extracted_text).strip()
+                pix = pdf_page.get_pixmap(
+                    matrix=pymupdf.Matrix(2, 2),
+                    alpha=False
+                )
+
+                image = Image.frombytes(
+                    "RGB",
+                    [pix.width, pix.height],
+                    pix.samples
+                )
+
+                page_text = pytesseract.image_to_string(
+                    image,
+                    lang="eng"
+                )
+
+            if page_text.strip():
+                extracted_text.append(
+                    f"[Page {page_number}]\n{page_text.strip()}"
+                )
+
+    return "\n\n".join(extracted_text).strip()
 
 
 class CommentCreate(BaseModel):
@@ -1060,8 +1094,7 @@ def ask_document(
     db: Session = Depends(get_db)
 ):
     document = db.query(models.Document).filter(
-        models.Document.id == request.document_id,
-        models.Document.user_id == current_user.id
+        models.Document.id == request.document_id
     ).first()
 
     if document is None:
@@ -1077,7 +1110,10 @@ def ask_document(
         )
 
     try:
-        pdf_text = extract_pdf_text(document.file_path)
+        start_time = time.perf_counter()
+        modified_time = os.path.getmtime(document.file_path)
+        pdf_text = get_cached_pdf_text(document.file_path, modified_time)
+        print(f"PDF extraction time: {time.perf_counter() - start_time:.2f} seconds")
 
         if not pdf_text:
             raise HTTPException(
